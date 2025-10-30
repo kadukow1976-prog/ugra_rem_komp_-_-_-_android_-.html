@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>УграРемКомп — заказы</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+:root{
+  --bg:#0b0c10; --panel:#111317; --soft:#161a1f; --text:#e5e7eb; --muted:#9aa1aa; --line:#23262d;
+  --brand:#19c37d; --brand-2:#14a169; --warn:#f59e0b; --bad:#ef4444; --good:#10b981; --chip:#0b3d24;
+  --radius:16px; --r2:12px; --shadow:0 8px 30px rgba(0,0,0,.35)
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f6f7f9; --panel:#ffffff; --soft:#f1f3f7; --text:#111827; --muted:#6b7280; --line:#e5e7eb; --chip:#ddf6ea }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.container{max-width:820px;margin:0 auto;padding:12px}
+.header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--bg),rgba(0,0,0,0));padding:10px 12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#062312;font-weight:700}
+.brand .title{font-weight:700}
+.tabs{display:flex;gap:8px;overflow:auto;padding:8px 0}
+.tab{padding:8px 12px;border-radius:999px;background:var(--soft);border:1px solid var(--line);cursor:pointer;white-space:nowrap}
+.tab.active{background:var(--chip);color:#05321e;border-color:transparent}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card.pad{padding:12px}
+.row{display:flex;gap:10px;align-items:center}
+.grid{display:grid;gap:10px}
+.grid.cols-2{grid-template-columns:1fr 1fr}
+@media (max-width:640px){.grid.cols-2{grid-template-columns:1fr}}
+.input, select, textarea{width:100%;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--text)}
+label{font-size:12px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#062312;border-color:transparent;font-weight:600}
+.btn.ghost{background:var(--soft)}
+.btn.bad{background:var(--bad);border-color:transparent}
+.btn.warn{background:var(--warn);color:#241a00;border-color:transparent}
+.badge{padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--text);font-size:12px}
+.badge.new{background:#0e2d19;color:#a7f3d0;border-color:transparent}
+.badge.wip{background:#1d2633}
+.badge.done{background:#0d2a30;color:#9ee3f0;border-color:transparent}
+.badge.arch{background:#312524}
+.list{display:grid;gap:8px}
+.item{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+.item .meta{display:flex;flex-direction:column;gap:4px;min-width:0}
+.meta .t1{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta .t2{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta .chips{display:flex;gap:6px;flex-wrap:wrap}
+.footer-space{height:80px}
+.fab{position:fixed;right:16px;bottom:16px;z-index:20}
+.fab .btn{box-shadow:var(--shadow)}
+.kpi{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media (max-width:640px){.kpi{grid-template-columns:1fr 1fr}}
+.kpi .k{padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);text-align:center}
+.k .v{font-size:18px;font-weight:700}
+.k .l{font-size:12px;color:var(--muted)}
+hr.sep{border:none;border-top:1px solid var(--line);margin:8px 0}
+.small{font-size:12px;color:var(--muted)}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.toggle{display:inline-flex;gap:6px;align-items:center}
+.hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="logo">URK</div>
+      <div class="title">УграРемКомп · Учёт заказов</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="list">Заказы</div>
+      <div class="tab" data-tab="new">Новый</div>
+      <div class="tab" data-tab="report">Отчёт</div>
+      <div class="tab" data-tab="sync">Синхр.</div>
+      <div class="tab" data-tab="settings">Настройки</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- LIST TAB -->
+    <section id="tab-list" class="grid gap">
+      <div class="card pad">
+        <div class="grid cols-2">
+          <input id="q" class="input" placeholder="Поиск: имя, телефон, модель, IMEI, заказ…" autocomplete="off" />
+          <div class="row">
+            <select id="filterStatus" class="input">
+              <option value="">Все статусы</option>
+              <option value="new">Новые</option>
+              <option value="wip">В работе</option>
+              <option value="done">Готово</option>
+              <option value="arch">Архив</option>
+            </select>
+            <select id="sortBy" class="input">
+              <option value="created_desc">Сначала новые</option>
+              <option value="created_asc">Сначала старые</option>
+              <option value="due_asc">Срок ближе</option>
+              <option value="profit_desc">По марже</option>
+            </select>
+          </div>
+        </div>
+        <div class="kpi" style="margin-top:8px">
+          <div class="k"><div class="v" id="k_open">0</div><div class="l">Открытых</div></div>
+          <div class="k"><div class="v" id="k_due">0</div><div class="l">Сегодня срок</div></div>
+          <div class="k"><div class="v" id="k_profit">0 ₽</div><div class="l">Маржа (месяц)</div></div>
+        </div>
+      </div>
+      <div class="list" id="orderList"></div>
+      <div class="footer-space"></div>
+    </section>
+
+    <!-- NEW TAB -->
+    <section id="tab-new" class="hidden">
+      <form id="orderForm" class="card pad grid" onsubmit="return false;">
+        <div class="grid cols-2">
+          <div>
+            <label>Имя клиента</label>
+            <input class="input" id="f_name" placeholder="Иван" required />
+          </div>
+          <div>
+            <label>Телефон</label>
+            <input class="input" id="f_phone" placeholder="+7 900 000-00-00" inputmode="tel" />
+          </div>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Модель аппарата</label>
+            <input class="input" id="f_model" placeholder="iPhone 11 / A52 / Redmi…" required />
+          </div>
+          <div>
+            <label>IMEI / Серийный</label>
+            <input class="input" id="f_imei" placeholder="необязательно" />
+          </div>
+        </div>
+        <div>
+          <label>Проблема</label>
+          <textarea class="input" id="f_issue" rows="2" placeholder="Не включается, замена дисплея…" required></textarea>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Срок (дата)</label>
+            <input class="input" id="f_due" type="date" />
+          </div>
+          <div>
+            <label>Статус</label>
+            <select class="input" id="f_status">
+              <option value="new">Новый</option>
+              <option value="wip">В работе</option>
+              <option value="done">Готово</option>
+              <option value="arch">Архив</option>
+            </select>
+          </div>
+        </div>
+        <hr class="sep" />
+        <div class="grid cols-2">
+          <div>
+            <label>Работа мастера, ₽</label>
+            <input class="input" id="f_work" type="number" inputmode="decimal" value="0" />
+          </div>
+          <div>
+            <label>Запчасти / себестоимость, ₽</label>
+            <input class="input" id="f_parts" type="number" inputmode="decimal" value="0" />
+          </div>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Предоплата, ₽</label>
+            <input class="input" id="f_prepay" type="number" inputmode="decimal" value="0" />
+          </div>
+          <div>
+            <label>Прочее / доп.расходы, ₽</label>
+            <input class="input" id="f_other" type="number" inputmode="decimal" value="0" />
+          </div>
+        </div>
+        <div>
+          <label>Заметка мастера</label>
+          <textarea class="input" id="f_note" rows="2" placeholder="что сделано / что заказать"></textarea>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Фото (камерой)</label>
+            <input class="input" id="f_photo" type="file" accept="image/*" capture="environment" multiple />
+          </div>
+          <div class="grid">
+            <div class="row"><span class="small">К оплате клиентом:</span> <b id="calc_total">0 ₽</b></div>
+            <div class="row"><span class="small">Маржа (работа−себестоимость):</span> <b id="calc_profit">0 ₽</b></div>
+          </div>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <button class="btn" type="button" id="btnDraft">Черновик</button>
+          <div class="row" style="gap:8px">
+            <button class="btn ghost" type="reset">Сброс</button>
+            <button class="btn primary" id="btnSave">Сохранить</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- REPORT TAB -->
+    <section id="tab-report" class="hidden">
+      <div class="card pad grid">
+        <div class="grid cols-2">
+          <div>
+            <label>Период от</label>
+            <input class="input" id="r_from" type="date" />
+          </div>
+          <div>
+            <label>до</label>
+            <input class="input" id="r_to" type="date" />
+          </div>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="row toggle"><input id="r_only_done" type="checkbox"/><label for="r_only_done">Только завершённые</label></div>
+          <div class="row" style="gap:8px">
+            <button class="btn" id="btnMakeCsv">Экспорт CSV</button>
+            <button class="btn primary" id="btnBuildReport">Сформировать</button>
+          </div>
+        </div>
+        <div id="reportHost" class="grid" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <!-- SYNC TAB -->
+    <section id="tab-sync" class="hidden">
+      <div class="card pad grid">
+        <div class="row" style="justify-content:space-between">
+          <div class="row" style="gap:8px">
+            <button class="btn" id="btnSync">Синхронизировать</button>
+            <button class="btn warn" id="btnRetry">Повторить неудачные</button>
+            <button class="btn bad" id="btnClearQueue">Очистить очередь</button>
+          </div>
+          <span class="small" id="syncInfo">offline</span>
+        </div>
+        <table class="table" id="queueTable" style="margin-top:8px">
+          <thead><tr><th>#</th><th>Тип</th><th>ID</th><th>Статус</th><th>Когда</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SETTINGS TAB -->
+    <section id="tab-settings" class="hidden">
+      <div class="card pad grid">
+        <div class="grid cols-2">
+          <div>
+            <label>Webhook (Apps Script)</label>
+            <input class="input" id="s_endpoint" placeholder="https://script.google.com/macros/s/XXXXX/exec" />
+          </div>
+          <div>
+            <label>API ключ (по желанию)</label>
+            <input class="input" id="s_api" placeholder="секретная_строка" />
+          </div>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Название точки/филиала</label>
+            <input class="input" id="s_branch" placeholder="УграРемКомп · Центр" />
+          </div>
+          <div>
+            <label>Ответственный по умолчанию</label>
+            <input class="input" id="s_master" placeholder="Александр" />
+          </div>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="row" style="gap:8px">
+            <button class="btn" id="btnSaveSettings">Сохранить</button>
+            <button class="btn ghost" id="btnResetApp">Сбросить приложение</button>
+          </div>
+          <span class="small" id="ver"></span>
+        </div>
+        <hr class="sep" />
+        <div class="small">Схема колонок в Google Sheets для записи заказов:
+          <pre id="columns" class="small" style="white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fab"><button class="btn primary" id="fabNew">＋ Новый заказ</button></div>
+
+<script>
+'use strict'
+const APP_VERSION = 'URK-Mobile v1.0.0';
+const LS_KEY = 'urk_orders_v1';
+const LS_QUEUE = 'urk_queue_v1';
+const LS_SETTINGS = 'urk_settings_v1';
+const ORDER_COLUMNS = [
+  'createdAt','orderId','clientName','phone','model','imei','issue','due','status',
+  'work','parts','prepay','other','note','photos','branch','master','profit','total'
+];
+
+// ========== STATE ==========
+let state = {
+  orders: [],
+  queue: [],
+  settings: {
+    endpoint: '', apiKey: '', branch: '', master: ''
+  }
+}
+
+// ========== UTIL ==========
+const $ = sel => document.querySelector(sel)
+const $$ = sel => Array.from(document.querySelectorAll(sel))
+const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(Number(n||0))) + ' ₽'
+const nowIso = () => new Date().toISOString()
+const id4 = () => Math.random().toString(16).slice(2,6)
+function genOrderId(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0')
+  const id = `URK-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${id4()}`
+  return id
+}
+function saveLS(){ localStorage.setItem(LS_KEY, JSON.stringify(state.orders)); }
+function saveQueue(){ localStorage.setItem(LS_QUEUE, JSON.stringify(state.queue)); }
+function saveSettings(){ localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings)); }
+function loadAll(){
+  try{ state.orders = JSON.parse(localStorage.getItem(LS_KEY))||[] }catch(e){ state.orders=[] }
+  try{ state.queue  = JSON.parse(localStorage.getItem(LS_QUEUE))||[] }catch(e){ state.queue=[] }
+  try{ state.settings = JSON.parse(localStorage.getItem(LS_SETTINGS))||state.settings }catch(e){}
+}
+
+function badge(status){
+  const map = {new:'Новый', wip:'В работе', done:'Готово', arch:'Архив'}
+  const cls = {new:'badge new', wip:'badge wip', done:'badge done', arch:'badge arch'}
+  return `<span class="${cls[status]||'badge'}">${map[status]||status}</span>`
+}
+
+function calc(order){
+  const work = +order.work||0, parts = +order.parts||0, prepay=+order.prepay||0, other=+order.other||0
+  const profit = Math.max(0, work - parts)
+  const total = Math.max(0, work + other + parts - prepay) // к оплате клиентом (если parts включаем в счёт)
+  return {profit, total}
+}
+
+function updateKPIs(){
+  const open = state.orders.filter(o=>o.status==='new'||o.status==='wip').length
+  const today = new Date().toISOString().slice(0,10)
+  const due = state.orders.filter(o=>o.due && o.due.slice(0,10)===today && (o.status==='new'||o.status==='wip')).length
+  const month = new Date().toISOString().slice(0,7) // YYYY-MM
+  const profitMonth = state.orders.filter(o=>o.createdAt.startsWith(month)).reduce((s,o)=>s+calc(o).profit,0)
+  $('#k_open').textContent = open
+  $('#k_due').textContent = due
+  $('#k_profit').textContent = fmt(profitMonth)
+}
+
+// ========== RENDER LIST ==========
+function renderList(){
+  const q = ($('#q').value||'').toLowerCase().trim()
+  const st = $('#filterStatus').value
+  const sort = $('#sortBy').value
+  let arr = [...state.orders]
+  if(q){
+    arr = arr.filter(o => [o.clientName,o.phone,o.model,o.imei,o.orderId,o.issue].join(' ').toLowerCase().includes(q))
+  }
+  if(st){ arr = arr.filter(o=>o.status===st) }
+  arr.sort((a,b)=>{
+    switch(sort){
+      case 'created_asc': return a.createdAt.localeCompare(b.createdAt)
+      case 'due_asc': return (a.due||'').localeCompare(b.due||'')
+      case 'profit_desc': return calc(b).profit - calc(a).profit
+      default: return b.createdAt.localeCompare(a.createdAt)
+    }
+  })
+  const host = $('#orderList')
+  host.innerHTML = ''
+  arr.forEach(o=>{
+    const {profit,total} = calc(o)
+    const metaTop = `${o.clientName||'—'} · ${o.model||''}`
+    const metaBot = `${o.phone||''} · ${o.orderId} · ${o.due?('срок '+o.due.slice(0,10)):'без срока'}`
+    const el = document.createElement('div')
+    el.className='item'
+    el.innerHTML = `
+      <div class="meta">
+        <div class="t1">${metaTop}</div>
+        <div class="t2">${metaBot}</div>
+        <div class="chips">${badge(o.status)} <span class="badge">Маржа ${fmt(profit)}</span> <span class="badge">К оплате ${fmt(total)}</span></div>
+      </div>
+      <div class="row">
+        <button class="btn ghost" data-act="edit">Открыть</button>
+        <button class="btn" data-act="status">→</button>
+      </div>
+    `
+    el.querySelector('[data-act="edit"]').onclick = ()=> openEditor(o.orderId)
+    el.querySelector('[data-act="status"]').onclick = ()=> rotateStatus(o.orderId)
+    host.appendChild(el)
+  })
+  updateKPIs()
+}
+
+function rotateStatus(id){
+  const o = state.orders.find(x=>x.orderId===id)
+  const flow = ['new','wip','done','arch']
+  o.status = flow[(flow.indexOf(o.status)+1)%flow.length]
+  saveLS(); enqueue('update', o); renderList()
+}
+
+// ========== EDITOR ==========
+function resetForm(){ $('#orderForm').reset(); updateCalc() }
+function updateCalc(){
+  const work=+$('#f_work').value||0, parts=+$('#f_parts').value||0, prepay=+$('#f_prepay').value||0, other=+$('#f_other').value||0
+  $('#calc_profit').textContent = fmt(Math.max(0,work-parts))
+  $('#calc_total').textContent = fmt(Math.max(0,work+parts+other-prepay))
+}
+$$('#f_work,#f_parts,#f_prepay,#f_other').forEach(id=>{const el=typeof id==='string'?$(id):id; (el||{}).addEventListener?.('input',updateCalc)})
+
+function formToOrder(orderId){
+  const files = $('#f_photo').files
+  const photos = []
+  // храним превью как dataURL (умеренно), для продакшена лучше грузить на Drive
+  const p = new Promise(resolve=>{
+    if(!files || !files.length) return resolve([])
+    let done=0
+    Array.from(files).slice(0,4).forEach(f=>{
+      const r = new FileReader(); r.onload=e=>{photos.push(e.target.result); if(++done===Math.min(files.length,4)) resolve(photos)}; r.readAsDataURL(f)
+    })
+  })
+  return p.then(()=>{
+    const o = {
+      createdAt: nowIso(), orderId: orderId||genOrderId(),
+      clientName: $('#f_name').value.trim(), phone: $('#f_phone').value.trim(),
+      model: $('#f_model').value.trim(), imei: $('#f_imei').value.trim(),
+      issue: $('#f_issue').value.trim(), due: $('#f_due').value||'', status: $('#f_status').value,
+      work: +$('#f_work').value||0, parts:+$('#f_parts').value||0, prepay:+$('#f_prepay').value||0, other:+$('#f_other').value||0,
+      note: $('#f_note').value.trim(), photos, branch: state.settings.branch||'', master: state.settings.master||''
+    }
+    const {profit,total} = calc(o); o.profit = profit; o.total = total
+    return o
+  })
+}
+
+function openEditor(id){
+  const o = state.orders.find(x=>x.orderId===id); if(!o) return
+  switchTab('new')
+  $('#f_name').value = o.clientName||''
+  $('#f_phone').value = o.phone||''
+  $('#f_model').value = o.model||''
+  $('#f_imei').value = o.imei||''
+  $('#f_issue').value = o.issue||''
+  $('#f_due').value = (o.due||'').slice(0,10)
+  $('#f_status').value = o.status||'new'
+  $('#f_work').value = o.work||0
+  $('#f_parts').value = o.parts||0
+  $('#f_prepay').value = o.prepay||0
+  $('#f_other').value = o.other||0
+  $('#f_note').value = o.note||''
+  updateCalc()
+  $('#btnSave').onclick = async ()=>{
+    const updated = await formToOrder(o.orderId)
+    const idx = state.orders.findIndex(x=>x.orderId===o.orderId)
+    state.orders[idx] = {...state.orders[idx], ...updated}
+    saveLS(); enqueue('update', state.orders[idx]); switchTab('list'); renderList()
+  }
+}
+
+// ========== QUEUE & SYNC ==========
+function enqueue(type, payload){
+  state.queue.push({id:Date.now()+'.'+id4(), type, payload, status:'pending', ts: nowIso()}); saveQueue(); renderQueue()
+}
+function renderQueue(){
+  const tb = $('#queueTable tbody'); tb.innerHTML=''
+  state.queue.slice().reverse().forEach((q,i)=>{
+    const tr = document.createElement('tr')
+    tr.innerHTML = `<td>${i+1}</td><td>${q.type}</td><td>${q.payload?.orderId||'—'}</td><td>${q.status}</td><td>${q.ts}</td>`
+    tb.appendChild(tr)
+  })
+  $('#syncInfo').textContent = navigator.onLine? 'online' : 'offline'
+}
+async function syncOnce(item){
+  const url = (state.settings.endpoint||'').trim(); if(!url){ item.status='no-endpoint'; return }
+  const body = {apiKey: state.settings.apiKey||'', action:item.type, data:item.payload}
+  try{
+    const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    if(!res.ok) throw new Error('HTTP '+res.status)
+    const json = await res.json().catch(()=>({ok:true}))
+    if(json.ok===false) throw new Error(json.message||'Server error')
+    item.status='ok'
+  }catch(e){ item.status='error' }
+}
+async function syncAll(){
+  for(const it of state.queue.filter(q=>q.status==='pending'||q.status==='error')){
+    await syncOnce(it)
+  }
+  saveQueue(); renderQueue()
+}
+
+// ========== REPORT ==========
+function buildReport(){
+  const from = $('#r_from').value||'0000-00-00';
+  const to = $('#r_to').value||'9999-12-31';
+  const onlyDone = $('#r_only_done').checked
+  const arr = state.orders.filter(o=>{
+    const d = (o.createdAt||'').slice(0,10)
+    if(d<from||d>to) return false
+    if(onlyDone && o.status!=='done') return false
+    return true
+  })
+  const sums = arr.reduce((a,o)=>{
+    a.work+=+o.work||0; a.parts+=+o.parts||0; a.prepay+=+o.prepay||0; a.other+=+o.other||0; const c=calc(o); a.profit+=c.profit; a.total+=c.total; return a
+  },{work:0,parts:0,prepay:0,other:0,profit:0,total:0})
+  const host = $('#reportHost'); host.innerHTML=''
+  const kpis = document.createElement('div'); kpis.className='kpi';
+  kpis.innerHTML = `
+    <div class="k"><div class="v">${fmt(sums.work)}</div><div class="l">Работа</div></div>
+    <div class="k"><div class="v">${fmt(sums.parts)}</div><div class="l">Себестоимость</div></div>
+    <div class="k"><div class="v">${fmt(sums.profit)}</div><div class="l">Маржа</div></div>
+    <div class="k"><div class="v">${fmt(sums.total)}</div><div class="l">К оплате</div></div>
+  `
+  host.appendChild(kpis)
+  const tbl = document.createElement('table'); tbl.className='table';
+  tbl.innerHTML = '<thead><tr><th>Дата</th><th>ID</th><th>Клиент</th><th>Модель</th><th>Статус</th><th>Работа</th><th>Себест.</th><th>Маржа</th></tr></thead><tbody></tbody>'
+  arr.forEach(o=>{
+    const tr=document.createElement('tr'); const c=calc(o)
+    tr.innerHTML = `<td>${o.createdAt.slice(0,10)}</td><td>${o.orderId}</td><td>${o.clientName}</td><td>${o.model}</td><td>${o.status}</td><td>${fmt(o.work)}</td><td>${fmt(o.parts)}</td><td>${fmt(c.profit)}</td>`
+    tbl.querySelector('tbody').appendChild(tr)
+  })
+  host.appendChild(tbl)
+}
+
+function exportCSV(){
+  const rows = [ORDER_COLUMNS, ...state.orders.map(o=>ORDER_COLUMNS.map(k=> (o[k]!==undefined? String(o[k]).replace(/\n/g,' '):'') ))]
+  const csv = rows.map(r=> r.map(x=>`"${x.replace(/"/g,'""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'})
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='orders.csv'; a.click(); URL.revokeObjectURL(a.href)
+}
+
+// ========== SETTINGS & INIT ==========
+function showColumns(){ $('#columns').textContent = ORDER_COLUMNS.join(' | ') }
+function applySettingsUI(){
+  $('#s_endpoint').value = state.settings.endpoint||''
+  $('#s_api').value = state.settings.apiKey||''
+  $('#s_branch').value = state.settings.branch||''
+  $('#s_master').value = state.settings.master||''
+  $('#ver').textContent = APP_VERSION
+}
+
+function switchTab(name){
+  $$('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===name))
+  ;['list','new','report','sync','settings'].forEach(id=> $('#tab-'+id).classList.toggle('hidden', id!==name))
+  if(name==='list') renderList();
+  if(name==='sync') renderQueue();
+}
+
+function wire(){
+  // tabs
+  $$('.tab').forEach(t=> t.onclick = ()=> switchTab(t.dataset.tab))
+  $('#fabNew').onclick = ()=> switchTab('new')
+  // list
+  $('#q').oninput = renderList; $('#filterStatus').onchange = renderList; $('#sortBy').onchange = renderList
+  // new
+  $('#btnDraft').onclick = async ()=>{
+    const o = await formToOrder(); o.status = o.status||'new'; state.orders.push(o); saveLS(); enqueue('create', o); switchTab('list'); renderList()
+  }
+  $('#btnSave').onclick = async ()=>{
+    const o = await formToOrder(); state.orders.push(o); saveLS(); enqueue('create', o); switchTab('list'); renderList()
+  }
+  // report
+  $('#btnBuildReport').onclick = buildReport
+  $('#btnMakeCsv').onclick = exportCSV
+  // sync
+  $('#btnSync').onclick = syncAll
+  $('#btnRetry').onclick = ()=>{ state.queue.filter(q=>q.status==='error').forEach(q=>q.status='pending'); saveQueue(); renderQueue() }
+  $('#btnClearQueue').onclick = ()=>{ if(confirm('Очистить очередь?')){ state.queue=[]; saveQueue(); renderQueue() } }
+  // settings
+  $('#btnSaveSettings').onclick = ()=>{ state.settings.endpoint=$('#s_endpoint').value.trim(); state.settings.apiKey=$('#s_api').value.trim(); state.settings.branch=$('#s_branch').value.trim(); state.settings.master=$('#s_master').value.trim(); saveSettings(); alert('Сохранено'); }
+  $('#btnResetApp').onclick = ()=>{
+    if(confirm('Полный сброс? Заказы и очередь будут удалены.')){ localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_QUEUE); location.reload() }
+  }
+  // online
+  window.addEventListener('online', ()=>{ $('#syncInfo').textContent='online'; })
+  window.addEventListener('offline', ()=>{ $('#syncInfo').textContent='offline'; })
+}
+
+// INIT
+loadAll(); showColumns(); applySettingsUI(); wire(); renderList();
+</script>
+
+<!-- ====== ПОДСКАЗКА ПО СЕРВЕРУ (Apps Script): замените XXX на ваш URL и вставьте ниже код на стороне GAS ====== -->
+<!--
+// === Code.gs (минимальный webhook) ===
+function doPost(e){
+  try{
+    const data = JSON.parse(e.postData.contents)
+    const apiKey = data.apiKey || ''
+    // опционально: проверка ключа
+    // if(apiKey !== 'секрет') return ContentService.createTextOutput(JSON.stringify({ok:false,message:'bad key'})).setMimeType(ContentService.MimeType.JSON)
+
+    const ss = SpreadsheetApp.openById('СПРАВЖНИК_ID_ТУТ')
+    const sh = ss.getSheetByName('Заказы')
+    const o = data.data || {}
+    const row = [o.createdAt,o.orderId,o.clientName,o.phone,o.model,o.imei,o.issue,o.due,o.status,o.work,o.parts,o.prepay,o.other,o.note,(o.photos||[]).join('\n'),o.branch,o.master,o.profit,o.total]
+    sh.appendRow(row)
+
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON)
+  }catch(err){
+    return ContentService.createTextOutput(JSON.stringify({ok:false,message:String(err)})).setMimeType(ContentService.MimeType.JSON)
+  }
+}
+// Не забудьте: Развернуть → Новое развертывание → Веб-приложение → Доступ: «Anyone»
+-->
+
+</body>
+</html>
